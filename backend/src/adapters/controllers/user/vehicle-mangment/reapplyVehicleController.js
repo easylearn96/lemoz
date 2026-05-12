@@ -1,0 +1,32 @@
+import { HttpStatus } from "../../../../domain/constants/httpStatus.js";
+
+export class ReapplyVehicleController {
+
+    constructor( _reapplyVehicleUsecase ) {
+        this._reapplyVehicleUsecase = _reapplyVehicleUsecase
+    }
+
+    async reapplyVehicle(req, res) {
+        try {
+            const { vehicleId } = req.body;
+
+            if (!vehicleId) {
+                res.status(HttpStatus.BAD_REQUEST).json({
+                    success: false,
+                    message: "Vehicle ID is required"
+                });
+                return;
+            }
+
+            const result = await this._reapplyVehicleUsecase.reapplyVehicle(vehicleId);
+                res.status(HttpStatus.OK).json(result);
+            
+        } catch (error) {
+            console.error("Error in reapplyVehicle controller:", error);
+            res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
+                success: false,
+                message: "Internal server error"
+            });
+        }
+    }
+}

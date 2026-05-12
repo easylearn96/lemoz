@@ -1,0 +1,31 @@
+import { HttpStatus } from "../../../domain/constants/httpStatus.js";
+
+export class FindOrCreateChatController {
+    constructor(_createChatUseCase) {
+        this._createChatUseCase = _createChatUseCase;
+    }
+
+    async findOrCreateChat(req, res) {
+        try {
+            const { userId, ownerId } = req.body;
+            if (!userId || !ownerId) {
+                res.status(HttpStatus.BAD_REQUEST).json({
+                    success: false,
+                    message: "Missing required fields"
+                });
+                return;
+            }
+             const chat = await this._createChatUseCase.createChat({ userId, ownerId });
+            res.status(HttpStatus.OK).json({
+                success: true,
+                data: chat
+            });
+        } catch (error) {
+            console.error("Error finding/creating chat:", error);
+            res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
+                success: false,
+                message: "Failed to find or create chat"
+            });
+        }
+    }
+}

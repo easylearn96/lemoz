@@ -1,0 +1,62 @@
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { Fuel, Users, Settings } from "lucide-react"
+import { useNavigate } from "react-router"
+
+const IMG_URL = import.meta.env.VITE_IMAGE_URL
+
+export function VehicleCard({ car }) {
+  const navigate = useNavigate()
+  return (
+    <div className="group relative overflow-hidden rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 hover:bg-white/15 transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl">
+      <div className="relative h-48 overflow-hidden">
+        <img
+          src={IMG_URL + car.image_urls[0] || "/placeholder.svg?height=200&width=300"}
+          alt={car.name}
+          className="object-cover w-full h-full transition-transform duration-300 group-hover:scale-110 rounded"
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
+        <Badge
+          variant="secondary"
+          className="absolute top-3 right-3 bg-white/20 backdrop-blur-sm text-white border-white/30"
+        >
+          {car.car_type.toUpperCase()}
+        </Badge>
+      </div>
+
+      <div className="p-5">
+        <div className="flex items-start justify-between mb-2">
+          <div>
+            <h3 className="text-lg font-bold text-white mb-0.5">{car.name}</h3>
+            <p className="text-gray-400 text-sm">{car.brand}</p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-4 mb-4 text-gray-300">
+          <div className="flex items-center gap-1.5">
+            <Fuel className="w-3.5 h-3.5" />
+            <span className="text-xs capitalize">{car.fuel_type}</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <Users className="w-3.5 h-3.5" />
+            <span className="text-xs">{car.seats} seats</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <Settings className="w-3.5 h-3.5" />
+            <span className="text-xs">{car.automatic ? "Auto" : "Manual"}</span>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between pt-2 border-t border-white/10">
+          <div>
+            <span className="text-xl font-bold text-white">₹{car.price_per_day}</span>
+            <span className="text-gray-400 text-xs ml-1">/day</span>
+          </div>
+          <Button onClick={() => navigate(`/vehicle-details/${car._id}`)} size="sm" className="bg-white text-black hover:bg-gray-200 font-semibold border-0 shadow-lg hover:shadow-white/20 hover:shadow-xl transition-all duration-300 px-5 h-9 rounded-lg">
+            View Details
+          </Button>
+        </div>
+      </div>
+    </div>
+  )
+}

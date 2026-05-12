@@ -1,0 +1,87 @@
+version: "3.9"
+
+services:
+  rydio-backend:
+    image: REPLACE_WITH_IMAGE_TAG
+    container_name: rydio-backend
+    restart: always
+    env_file:
+      - .env
+    depends_on:
+      - redis
+    ports:
+      - "3003:3003"
+    networks:
+      - rydio_network
+
+  redis:
+    image: redis:7
+    container_name: redis
+    restart: always
+    ports:
+      - "6379:6379"
+    networks:
+      - rydio_network
+
+  prom-server:
+    image: prom/prometheus
+    container_name: prom-server
+    restart: always
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus-config.yml:/etc/prometheus/prometheus.yml
+    networks:
+      - rydio_network
+      
+  grafana:
+    image: grafana/grafana
+    container_name: grafana
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SERVER_ROOT_URL=https://REPLACE_WITH_DOMAIN/grafana/
+      - GF_SERVER_SERVE_FROM_SUB_PATH=true
+    networks:
+      - rydio_network
+    volumes:
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      - prom-server
+      - loki
+
+  loki:
+    image: grafana/loki:3.1.1
+    container_name: loki
+    restart: always
+    ports:
+      - "3100:3100"
+    networks:
+      - rydio_network
+    volumes:
+      - loki_data:/loki
+
+  nginx:
+    image: nginx:alpine
+    container_name: nginx
+    restart: always
+    volumes:
+      - ./rydio.conf:/etc/nginx/conf.d/default.conf:ro
+      - /etc/letsencrypt:/etc/letsencrypt
+    ports:
+      - "80:80"
+      - "443:443"
+    networks:
+      - rydio_network
+    depends_on:
+      - rydio-backend
+
+volumes:
+  certbot_data:
+  grafana_data:
+  loki_data:
+
+networks:
+  rydio_network:
+    driver: bridge

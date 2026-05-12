@@ -1,0 +1,26 @@
+import { HttpStatus } from "../../../../domain/constants/httpStatus.js"
+
+export class RideStartController {
+    constructor(_rideStartUsecase) {
+        this._rideStartUsecase = _rideStartUsecase
+    }
+    async handleRideStart(req, res) {
+        try {
+            const { bookingId } = req.params
+            const scanner_user_id = req.user?.userId
+
+            if (!scanner_user_id) {
+                return res.status(HttpStatus.UNAUTHORIZED).json({ message: "User authentication required" });
+            }
+            const input = { bookingId };
+            const result = await this._rideStartUsecase.rideStart(input, scanner_user_id)
+            res.status(HttpStatus.OK).json({ message: "Ride started successfully", result })
+        } catch (error) {
+            console.log('error while ride start', error)
+            res.status(HttpStatus.BAD_REQUEST).json({
+                message: 'error while ride start',
+                error: error instanceof Error ? error.message : 'error while ride start'
+            })
+        }
+    }
+}

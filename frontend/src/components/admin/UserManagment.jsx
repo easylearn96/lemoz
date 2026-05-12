@@ -1,0 +1,235 @@
+import { useEffect, useState } from 'react';
+import { motion } from 'framer-motion';
+import { Search, Filter, X } from 'lucide-react';
+import { Spinner } from "@/components/ui/spinner";
+import { getUsers } from '@/services/admin/authService';
+import { HandleVendorAccess, UnbserBlock, UserBlock } from '@/services/admin/UserManagmentService';
+import toast from 'react-hot-toast';
+import Pagination from '../Pagination';
+import Table from '../Table';
+
+const arr = ["user", 'Created', 'Status', 'Vendor Access']
+
+
+export function UserManagement() {
+  const [users, setUsers] = useState([]);
+  const [totalUsers, setTotalUsers] = useState(0);
+  const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [limit] = useState(6);
+  const [totalPages, setTotalPages] = useState(1);
+  const [isLoading, setIsLoading] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
+  const [filters, setFilters] = useState({
+    status: 'all', // 'all', 'active', 'blocked'
+    vendorAccess: 'all' // 'all', 'true', 'false'
+  });
+
+  // Debounce effect
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      setDebouncedSearch(search);
+      setCurrentPage(1);
+    }, 1500);
+    return () => clearTimeout(timeout);
+  }, [search]);
+
+  useEffect(() => {
+    const fetchUsers = async () => {
+      setIsLoading(true);
+      try {
+        const { users, total } = await getUsers(debouncedSearch, currentPage, limit, filters);
+        if (Array.isArray(users)) {
+          setUsers(users);
+          setTotalUsers(total);
+          setTotalPages(Math.ceil(total / limit));
+        }
+      } catch (error) {
+        console.error(error);
+        toast.error('Failed to fetch users');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchUsers();
+  }, [debouncedSearch, currentPage, limit, filters]);
+
+  const handleBlock = async (userId, blocked) => {
+    try {
+      if (!blocked) {
+        await UserBlock(userId);
+        toast.success('User blocked');
+      } else {
+        await UnbserBlock(userId);
+        toast.success('User unblocked');
+      }
+      toggleBlock(userId);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      toast.error(`User block failed: ${errorMessage}`);
+    }
+  };
+  const handleVendorAccess = async (userId, vendorAccess) => {
+    try {
+      await HandleVendorAccess(userId, vendorAccess);
+      toast.success('vendor access changed');
+      toggleVendorAccess(userId);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      toast.error(`vendor access failed: ${errorMessage}`);
+    }
+  };
+
+  const toggleBlock = (userId) => {
+    setUsers(prev =>
+      prev.map(user =>
+        user._id === userId ? { ...user, is_blocked: !user.is_blocked } : user
+      )
+    );
+  };
+
+  const toggleVendorAccess = (userId) => {
+    setUsers(prev =>
+      prev.map(user =>
+        user._id === userId ? { ...user, vendor_access: !user.vendor_access } : user
+      )
+    );
+  };
+
+  const handleFilterChange = (key, value) => {
+    setFilters(prev => ({ ...prev, [key]: value }));
+    setCurrentPage(1);
+  };
+
+  const clearFilters = () => {
+    setFilters({
+      status: 'all',
+      vendorAccess: 'all'
+    });
+    setCurrentPage(1);
+  };
+
+  const hasActiveFilters = filters.status !== 'all' || filters.vendorAccess !== 'all';
+
+
+
+  return (
+    <motion.div className="p-6 space-y-6 min-h-screen bg-black/90">
+      <motion.div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-white">User Management</h1>
+          <p className="text-gray-400 mt-1">Manage and monitor user accounts ({totalUsers} total)</p>
+        </div>
+      </motion.div>
+
+      {/* Search and Filters */}
+      <motion.div className="bg-black/80 backdrop-blur-xl border border-black/60 shadow-2xl p-4 rounded-xl">
+        <div className="flex flex-col gap-4">
+          {/* Search Bar */}
+          <div className="flex flex-col md:flex-row gap-4">
+            <div className="flex-1 relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
+              <input
+                type="text"
+                placeholder="Search by email or name..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-black/60 rounded-lg bg-transparent text-white focus:outline-none focus:ring-2 focus:ring-[#e63946]"
+              />
+            </div>
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg border transition-all duration-200 ${showFilters || hasActiveFilters
+                ? 'bg-[#e63946]/20 border-[#e63946] text-[#e63946]'
+                : 'border-black/60 text-gray-400 hover:border-gray-500'
+                }`}
+            >
+              <Filter size={18} />
+              Filters
+              {hasActiveFilters && (
+                <span className="bg-[#e63946] text-white text-xs px-2 py-1 rounded-full">!</span>
+              )}
+            </button>
+          </div>
+
+          {/* Filter Panel */}
+          {showFilters && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              className="border-t border-black/60 pt-4"
+            >
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Status Filter */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-400 mb-2">Status</label>
+                  <select
+                    value={filters.status}
+                    onChange={(e) => handleFilterChange('status', e.target.value)}
+                    className="w-full px-3 py-2 border border-black/60 rounded-lg bg-black/60 text-white focus:outline-none focus:ring-2 focus:ring-[#e63946]"
+                  >
+                    <option value="all">All Users</option>
+                    <option value="active">Active</option>
+                    <option value="blocked">Blocked</option>
+                  </select>
+                </div>
+
+                {/* Vendor Access Filter */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-400 mb-2">Vendor Access</label>
+                  <select
+                    value={filters.vendorAccess}
+                    onChange={(e) => handleFilterChange('vendorAccess', e.target.value)}
+                    className="w-full px-3 py-2 border border-black/60 rounded-lg bg-black/60 text-white focus:outline-none focus:ring-2 focus:ring-[#e63946]"
+                  >
+                    <option value="all">All</option>
+                    <option value="true">Has Access</option>
+                    <option value="false">No Access</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Clear Filters */}
+              {hasActiveFilters && (
+                <div className="flex justify-end mt-4">
+                  <button
+                    onClick={clearFilters}
+                    className="flex items-center gap-2 px-4 py-2 text-sm text-gray-400 hover:text-white transition-colors"
+                  >
+                    <X size={16} />
+                    Clear Filters
+                  </button>
+                </div>
+              )}
+            </motion.div>
+          )}
+        </div>
+      </motion.div>
+
+      {/* Table */}
+      <motion.div className="bg-transparent backdrop-blur-xl border border-black/60 shadow-2xl rounded-xl overflow-hidden">
+        {isLoading ? (
+          <div className="flex flex-col justify-center items-center h-64">
+            <Spinner size="xl" className="border-red-500 border-t-transparent" />
+            <span className="mt-4 text-white/80 text-lg font-semibold animate-pulse">Loading users...</span>
+          </div>
+        ) : users.length === 0 ? (
+          <div className="p-6  h-100 flex text-center justify-center text-gray-400">No users found</div>
+        ) : (
+          <Table users={users} heading={arr} handleVendorAccess={handleVendorAccess} handleBlock={handleBlock} />
+        )}
+      </motion.div>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={setCurrentPage}
+        />
+      )}
+    </motion.div>
+  );
+}
